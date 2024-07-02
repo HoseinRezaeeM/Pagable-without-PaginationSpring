@@ -1,0 +1,74 @@
+ @Override
+    public AdminManagementPageResponse findAllAdminManagement(Pageable pageable) {
+
+
+        String idGroup = keycloak.realm("si")
+                .groups().group("749e9156-b846-4931-970e-1c1d58fd4fa4")
+                .toRepresentation().getId();
+
+        List<UserRepresentation> representations = keycloak.realm("si")
+                .groups()
+                .group(idGroup)
+                .members();
+        String name = keycloak.realm("si")
+                .groups().group("749e9156-b846-4931-970e-1c1d58fd4fa4")
+                .toRepresentation().getName();
+        List<AdminManagementResponse> adminList = new ArrayList<>();
+        for (UserRepresentation user : representations) {
+            AdminManagementResponse admin = new AdminManagementResponse();
+            if(user.getLastName() == null){
+                admin.setName(user.getFirstName());
+            }else {
+            admin.setName(user.getFirstName()+" "+ user.getLastName());}
+            admin.setEmail(user.getEmail());
+            List<LogUser> logUsers = logUserRepository.findLogUsersByUserId(user.getId());
+            try {
+                LogUser logUser = logUsers.stream().findFirst().orElse(null);
+                admin.setLastLogin(logUser.getLastDateLogin());
+            } catch (NullPointerException e) {
+                admin.setLastLogin(null);
+            }
+            admin.setMobileNumber(user.getUsername());
+            admin.setUsername(user.getUsername());
+            admin.setRole(name);
+            adminList.add(admin);
+        }
+        AdminManagementPageResponse responsePage = new AdminManagementPageResponse();
+        int firstIndex = pageable.getPageNumber() * pageable.getPageSize() - pageable.getPageSize();
+        int lastIndex = pageable.getPageNumber() * pageable.getPageSize();
+        int totalPage = adminList.size() / pageable.getPageSize() + 1;
+        if (pageable.getPageNumber() > totalPage) {
+            responsePage.setContent(null);
+            responsePage.setTotalPages(totalPage);
+            responsePage.setNumberOfElements(0);
+            responsePage.setFirst(false);
+            responsePage.setLast(true);
+            responsePage.setEmpty(true);
+            return responsePage;
+        }
+        if (lastIndex > adminList.size()) {
+            List<AdminManagementResponse> subList = adminList.subList(firstIndex, adminList.size());
+            responsePage.setContent(subList);
+            responsePage.setTotalPages(adminList.size() / pageable.getPageSize() + 1);
+            responsePage.setNumberOfElements(subList.size());
+            responsePage.setFirst(false);
+            responsePage.setLast(true);
+            responsePage.setEmpty(false);
+            return responsePage;
+        }
+        List<AdminManagementResponse> list1 = adminList.subList(firstIndex, lastIndex);
+        responsePage.setContent(list1);
+        responsePage.setTotalPages(adminList.size() / pageable.getPageSize() + 1);
+        responsePage.setNumberOfElements(list1.size());
+        if(firstIndex == 0){
+            responsePage.setFirst(true);
+        }
+        responsePage.setFirst(false);
+        if(lastIndex == adminList.size()){
+            responsePage.setLast(true);
+        }
+        responsePage.setLast(false);
+        responsePage.setEmpty(false);
+        return responsePage;
+
+    }
